@@ -69,17 +69,18 @@ impl FSNode {
             return Ok(FSNode::new_file(name));
          }
          if metadata.is_dir() {
+            if depth == 0 {
+               return Ok(FSNode::new_directory(name));
+            }
             let contents = fs::read_dir(path)?;
             let mut dir = FSNode::new_directory(name);
-            if depth > 0 {
-               for child in contents {
-                  if let Ok(child) = child {
-                     let child = FSNode::read_path(child.path(), depth - 1)?;
-                     dir.add_child(child);
-                  }
-                  else {
-                     return Err(io::Error::new(io::ErrorKind::Other, "CANT READ CHILD"));
-                  }
+            for child in contents {
+               if let Ok(child) = child {
+                  let child = FSNode::read_path(child.path(), depth - 1)?;
+                  dir.add_child(child);
+               }
+               else {
+                  return Err(io::Error::new(io::ErrorKind::Other, "CANT READ CHILD"));
                }
             }
             return Ok(dir);
