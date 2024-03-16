@@ -61,35 +61,31 @@ impl FSNode {
    }
 
    fn read_path(path: PathBuf, depth: u8) -> io::Result<FSNode> {
-      if let Ok(metadata) = fs::metadata(&path) {
-         if let Some(name) = path.file_name() {
-            let name = name.to_string_lossy().to_string();
+      let metadata = fs::metadata(&path)?;
+      if let Some(name) = path.file_name() {
+         let name = name.to_string_lossy().to_string();
 
-            if metadata.is_file() {
-               return Ok(FSNode::new_file(name));
-            }
-            if metadata.is_dir() {
-               if let Ok(contents) = fs::read_dir(path) {
-                  let mut dir = FSNode::new_directory(name);
-                  if depth > 0 {
-                     for child in contents {
-                        if let Ok(child) = child {
-                           let child = FSNode::read_path(child.path(), depth - 1)?;
-                           dir.add_child(child);
-                        }
-                        else {
-                           return Err(io::Error::new(io::ErrorKind::Other, "CANT READ CHILD"));
-                        }
-                     }
-                  }
-                  return Ok(dir);
-               }
-               return Err(io::Error::new(io::ErrorKind::Other, "CANT READ DIR"));
-            }
+         if metadata.is_file() {
+            return Ok(FSNode::new_file(name));
          }
-         return Err(io::Error::new(io::ErrorKind::Other, "CANT GET FILE NAME"));
+         if metadata.is_dir() {
+            let contents = fs::read_dir(path)?;
+            let mut dir = FSNode::new_directory(name);
+            if depth > 0 {
+               for child in contents {
+                  if let Ok(child) = child {
+                     let child = FSNode::read_path(child.path(), depth - 1)?;
+                     dir.add_child(child);
+                  }
+                  else {
+                     return Err(io::Error::new(io::ErrorKind::Other, "CANT READ CHILD"));
+                  }
+               }
+            }
+            return Ok(dir);
+         }
       }
-      return Err(io::Error::new(io::ErrorKind::Other, "CANT READ METADATA"));
+      return Err(io::Error::new(io::ErrorKind::Other, "CANT GET FILE NAME"));
    }
 
    fn add_child(&mut self, child: FSNode) {
